@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       WC Product Descriptions Editor
- * Description:       لیست همه محصولات ووکامرس با ویرایش درجا توضیحات کوتاه و توضیحات اصلی.
- * Version:           1.3.2
+ * Description:       لیست همه محصولات ووکامرس با ویرایش درجا توضیحات کوتاه و پیش‌نمایش جدول AI.
+ * Version:           1.3.4
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WCPDE_VERSION', '1.3.2');
+define('WCPDE_VERSION', '1.3.4');
 define('WCPDE_FILE', __FILE__);
 define('WCPDE_PATH', plugin_dir_path(__FILE__));
 define('WCPDE_URL', plugin_dir_url(__FILE__));

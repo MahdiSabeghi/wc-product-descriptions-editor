@@ -7,6 +7,18 @@
     return;
   }
 
+  function isTableHtml(text) {
+    return /<table[\s>]/i.test(text);
+  }
+
+  function emptyPreviewHtml() {
+    return (
+      '<p class="wcpde-table-preview__empty">' +
+      (cfg.i18n.noPreview || "No preview") +
+      "</p>"
+    );
+  }
+
   function setStatus(row, text, type) {
     var el = row.querySelector(".wcpde-status");
     if (!el) {
@@ -21,60 +33,72 @@
     row.classList.toggle("is-dirty", !!dirty);
   }
 
-  function snapshot(row) {
-    var excerpt = row.querySelector('[data-field="excerpt"]');
-    var content = row.querySelector('[data-field="content"]');
+  function getSavedExcerpt(row) {
+    var hidden = row.querySelector('[data-field="excerpt"]');
+    return hidden ? hidden.value : "";
+  }
 
-    return {
-      excerpt: excerpt ? excerpt.value : "",
-      content: content ? content.value : "",
-    };
+  function getDraftExcerpt(row) {
+    var input = row.querySelector('[data-field="excerpt-input"]');
+    return input ? input.value.trim() : "";
+  }
+
+  function getExcerptForSave(row) {
+    var draft = getDraftExcerpt(row);
+    if (draft !== "") {
+      return draft;
+    }
+
+    return getSavedExcerpt(row);
+  }
+
+  function updatePreview(row, html) {
+    var previewEl = row.querySelector(".wcpde-table-preview");
+    if (!previewEl) {
+      return;
+    }
+
+    if (html && isTableHtml(html)) {
+      previewEl.innerHTML = html;
+      previewEl.classList.remove("is-empty");
+      return;
+    }
+
+    previewEl.innerHTML = emptyPreviewHtml();
+    previewEl.classList.add("is-empty");
+  }
+
+  function syncInputAfterSave(row, excerpt) {
+    var hidden = row.querySelector('[data-field="excerpt"]');
+    var input = row.querySelector('[data-field="excerpt-input"]');
+
+    if (hidden) {
+      hidden.value = excerpt;
+    }
+
+    if (input) {
+      input.value = isTableHtml(excerpt) ? "" : excerpt;
+    }
+
+    updatePreview(row, excerpt);
   }
 
   function bindRow(row) {
     var saveBtn = row.querySelector(".wcpde-save");
     var aiBtn = row.querySelector(".wcpde-ai-generate");
-    var previewBtn = row.querySelector(".wcpde-ai-preview-toggle");
-    var previewEl = row.querySelector(".wcpde-ai-preview");
-    var fields = row.querySelectorAll(".wcpde-textarea, .wcpde-field");
-    var original = snapshot(row);
+    var inputField = row.querySelector('[data-field="excerpt-input"]');
+    var original = getExcerptForSave(row);
     var saving = false;
     var aiLoading = false;
 
-    function showPreview(html) {
-      if (!previewEl) {
-        return;
-      }
-
-      previewEl.innerHTML = html;
-      previewEl.hidden = false;
-
-      if (previewBtn) {
-        previewBtn.hidden = false;
-        previewBtn.setAttribute("aria-expanded", "true");
-      }
-    }
-
-    function togglePreview() {
-      if (!previewEl || !previewBtn) {
-        return;
-      }
-
-      var open = previewBtn.getAttribute("aria-expanded") === "true";
-      previewEl.hidden = open;
-      previewBtn.setAttribute("aria-expanded", open ? "false" : "true");
-    }
-
-    fields.forEach(function (field) {
-      field.addEventListener("input", function () {
-        var current = snapshot(row);
-        markDirty(
-          row,
-          current.excerpt !== original.excerpt || current.content !== original.content
-        );
+    if (inputField) {
+      inputField.addEventListener("input", function () {
+        var draft = getDraftExcerpt(row);
+        updatePreview(row, draft !== "" ? draft : getSavedExcerpt(row));
+        markDirty(row, getExcerptForSave(row) !== original);
       });
 
-      field.addEventListener("keydown", function (event) {
+      inputField.addEventListener("keydown", function (event) {
         if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
           event.preventDefault();
           if (saveBtn) {
@@ -82,10 +106,6 @@
           }
         }
       });
-    });
-
-    if (previewBtn) {
-      previewBtn.addEventListener("click", togglePreview);
     }
 
     if (aiBtn) {
@@ -102,11 +122,15 @@
           return;
         }
 
-        var excerptField = row.querySelector('[data-field="excerpt"]');
-        var excerptText = excerptField ? excerptField.value.trim() : "";
+        var excerptText = getDraftExcerpt(row);
 
         if (!excerptText) {
           setStatus(row, cfg.i18n.aiNeedExcerpt || "Enter short description text first", "error");
+          return;
+        }
+
+        if (isTableHtml(excerptText)) {
+          setStatus(row, cfg.i18n.aiNeedPlain || "Enter plain text first", "error");
           return;
         }
 
@@ -134,14 +158,8 @@
               );
             }
 
-            var excerptField = row.querySelector('[data-field="excerpt"]');
             var html = result.data.html || "";
-
-            if (excerptField) {
-              excerptField.value = html;
-            }
-
-            showPreview(html);
+            syncInputAfterSave(row, html);
             markDirty(row, true);
             setStatus(row, cfg.i18n.aiDone || "AI done", "success");
           })
@@ -169,7 +187,7 @@
         return;
       }
 
-      var current = snapshot(row);
+      var excerpt = getExcerptForSave(row);
       saving = true;
       saveBtn.disabled = true;
       setStatus(row, cfg.i18n.saving || "Saving…", "loading");
@@ -181,8 +199,7 @@
           "X-WP-Nonce": cfg.nonce,
         },
         body: JSON.stringify({
-          excerpt: current.excerpt,
-          content: current.content,
+          excerpt: excerpt,
         }),
       })
         .then(function (response) {
@@ -198,18 +215,10 @@
           }
 
           if (result.data.product) {
-            var excerptField = row.querySelector('[data-field="excerpt"]');
-            var contentField = row.querySelector('[data-field="content"]');
-
-            if (excerptField) {
-              excerptField.value = result.data.product.excerpt || "";
-            }
-            if (contentField) {
-              contentField.value = result.data.product.content || "";
-            }
+            syncInputAfterSave(row, result.data.product.excerpt || "");
           }
 
-          original = snapshot(row);
+          original = getExcerptForSave(row);
           markDirty(row, false);
           setStatus(row, cfg.i18n.saved || "Saved", "success");
         })

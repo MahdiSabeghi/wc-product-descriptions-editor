@@ -14,6 +14,8 @@ final class WCPDE_Product_Query
     /** @var int[] */
     public const PER_PAGE_OPTIONS = [20, 50, 100];
 
+    private static string $excerpt_status = '';
+
     /**
      * @return array<string, mixed>
      */
@@ -53,6 +55,11 @@ final class WCPDE_Product_Query
             $order = 'ASC';
         }
 
+        $excerpt_status = sanitize_key((string) ($_GET['excerpt_status'] ?? ''));
+        if (!in_array($excerpt_status, ['empty', 'filled'], true)) {
+            $excerpt_status = '';
+        }
+
         return [
             's'            => sanitize_text_field(wp_unslash((string) ($_GET['s'] ?? ''))),
             'sku'          => sanitize_text_field(wp_unslash((string) ($_GET['sku'] ?? ''))),
@@ -61,8 +68,9 @@ final class WCPDE_Product_Query
             'product_type' => $type,
             'stock_status' => $stock,
             'post_status'  => $status,
-            'featured'     => isset($_GET['featured']) ? sanitize_key((string) $_GET['featured']) : '',
-            'paged'        => max(1, (int) ($_GET['paged'] ?? 1)),
+            'featured'       => isset($_GET['featured']) ? sanitize_key((string) $_GET['featured']) : '',
+            'excerpt_status' => $excerpt_status,
+            'paged'          => max(1, (int) ($_GET['paged'] ?? 1)),
             'per_page'     => $per_page,
             'orderby'      => $orderby,
             'order'        => $order,
@@ -134,13 +142,17 @@ final class WCPDE_Product_Query
      */
     public static function query_paginated(array $filters): array
     {
-        $args   = self::wc_args_from_filters(
+        $args = self::wc_args_from_filters(
             $filters,
             true,
             (int) ($filters['paged'] ?? 1),
             (int) ($filters['per_page'] ?? 20)
         );
-        $result = wc_get_products($args);
+
+        $result = self::with_excerpt_filter(
+            (string) ($filters['excerpt_status'] ?? ''),
+            static fn() => wc_get_products($args)
+        );
 
         if (!is_object($result) || !isset($result->products)) {
             return [
@@ -167,7 +179,10 @@ final class WCPDE_Product_Query
     public static function query_all(array $filters): array
     {
         $args   = self::wc_args_from_filters($filters, false);
-        $result = wc_get_products($args);
+        $result = self::with_excerpt_filter(
+            (string) ($filters['excerpt_status'] ?? ''),
+            static fn() => wc_get_products($args)
+        );
 
         return is_array($result) ? $result : [];
     }
@@ -185,7 +200,7 @@ final class WCPDE_Product_Query
             'order'    => (string) ($filters['order'] ?? 'ASC'),
         ];
 
-        foreach (['s', 'sku', 'product_type', 'stock_status', 'post_status', 'featured'] as $key) {
+        foreach (['s', 'sku', 'product_type', 'stock_status', 'post_status', 'featured', 'excerpt_status'] as $key) {
             if ((string) ($filters[$key] ?? '') !== '') {
                 $args[$key] = (string) $filters[$key];
             }
@@ -198,6 +213,53 @@ final class WCPDE_Product_Query
         }
 
         return $args;
+    }
+
+    /**
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    private static function with_excerpt_filter(string $status, callable $callback)
+    {
+        self::$excerpt_status = $status;
+
+        if ($status !== '') {
+            add_filter('posts_where', [self::class, 'filter_posts_where'], 10, 2);
+        }
+
+        try {
+            return $callback();
+        } finally {
+            if ($status !== '') {
+                remove_filter('posts_where', [self::class, 'filter_posts_where'], 10);
+            }
+
+            self::$excerpt_status = '';
+        }
+    }
+
+    public static function filter_posts_where(string $where, WP_Query $query): string
+    {
+        if (self::$excerpt_status === '') {
+            return $where;
+        }
+
+        $post_type = $query->get('post_type');
+
+        if ($post_type !== 'product' && (!is_array($post_type) || !in_array('product', $post_type, true))) {
+            return $where;
+        }
+
+        global $wpdb;
+
+        if (self::$excerpt_status === 'empty') {
+            $where .= " AND ({$wpdb->posts}.post_excerpt IS NULL OR TRIM({$wpdb->posts}.post_excerpt) = '')";
+        } elseif (self::$excerpt_status === 'filled') {
+            $where .= " AND TRIM({$wpdb->posts}.post_excerpt) <> ''";
+        }
+
+        return $where;
     }
 
     public static function find_product_id_by_title(string $title): int

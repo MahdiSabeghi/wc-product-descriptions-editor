@@ -60,9 +60,16 @@ final class WCPDE_Admin
         );
 
         wp_enqueue_style(
+            'wcpde-frontend-table',
+            WCPDE_URL . 'assets/css/frontend-table.css',
+            [],
+            WCPDE_VERSION
+        );
+
+        wp_enqueue_style(
             'wcpde-admin',
             WCPDE_URL . 'assets/css/admin.css',
-            ['wcpde-vazirmatn'],
+            ['wcpde-vazirmatn', 'wcpde-frontend-table'],
             WCPDE_VERSION
         );
 
@@ -93,7 +100,8 @@ final class WCPDE_Admin
                     'aiError'   => __('خطا در تولید AI', 'wc-product-descriptions-editor'),
                     'aiNeedKey' => __('کلید API متیس را در تنظیمات وارد کنید.', 'wc-product-descriptions-editor'),
                     'aiNeedExcerpt' => __('ابتدا متن توضیحات کوتاه را وارد کنید.', 'wc-product-descriptions-editor'),
-                    'preview'   => __('پیش‌نمایش', 'wc-product-descriptions-editor'),
+                    'aiNeedPlain'   => __('برای تولید مجدد، متن خام (غیر HTML) در توضیحات کوتاه وارد کنید.', 'wc-product-descriptions-editor'),
+                    'noPreview' => __('پیش‌نمایشی وجود ندارد — متن را وارد کنید و «تولید جدول AI» را بزنید.', 'wc-product-descriptions-editor'),
                 ],
             ]
         );
@@ -246,7 +254,7 @@ final class WCPDE_Admin
             <header class="wcpde-hero">
                 <div>
                     <h1><?php esc_html_e('ویرایش توضیحات محصولات', 'wc-product-descriptions-editor'); ?></h1>
-                    <p><?php esc_html_e('توضیحات کوتاه و اصلی همه محصولات را در یک جدول ویرایش و ذخیره کنید.', 'wc-product-descriptions-editor'); ?></p>
+                    <p><?php esc_html_e('متن توضیحات کوتاه را وارد کنید، جدول HTML با AI بسازید و پیش‌نمایش آن را ببینید.', 'wc-product-descriptions-editor'); ?></p>
                 </div>
                 <div class="wcpde-hero__stat">
                     <strong><?php echo esc_html(number_format_i18n($total)); ?></strong>
@@ -336,6 +344,15 @@ final class WCPDE_Admin
                     </label>
 
                     <label class="wcpde-field-wrap">
+                        <span><?php esc_html_e('توضیحات کوتاه', 'wc-product-descriptions-editor'); ?></span>
+                        <select name="excerpt_status">
+                            <option value=""><?php esc_html_e('همه', 'wc-product-descriptions-editor'); ?></option>
+                            <option value="filled" <?php selected($filters['excerpt_status'], 'filled'); ?>><?php esc_html_e('پر', 'wc-product-descriptions-editor'); ?></option>
+                            <option value="empty" <?php selected($filters['excerpt_status'], 'empty'); ?>><?php esc_html_e('خالی', 'wc-product-descriptions-editor'); ?></option>
+                        </select>
+                    </label>
+
+                    <label class="wcpde-field-wrap">
                         <span><?php esc_html_e('مرتب‌سازی', 'wc-product-descriptions-editor'); ?></span>
                         <select name="orderby">
                             <option value="title" <?php selected($filters['orderby'], 'title'); ?>><?php esc_html_e('نام', 'wc-product-descriptions-editor'); ?></option>
@@ -380,13 +397,13 @@ final class WCPDE_Admin
                 <div class="wcpde-excel__head">
                     <div>
                         <h2><?php esc_html_e('اکسل — دانلود قالب و آپلود', 'wc-product-descriptions-editor'); ?></h2>
-                        <p><?php esc_html_e('فایل شامل سه ستون است: نام محصول، توضیحات کوتاه، توضیحات اصلی. قالب با فیلترهای فعلی پر می‌شود؛ فقط محصولاتی که نامشان در ووکامرس وجود دارد به‌روزرسانی می‌شوند.', 'wc-product-descriptions-editor'); ?></p>
+                        <p><?php esc_html_e('فایل شامل دو ستون است: نام محصول و توضیحات کوتاه. قالب با فیلترهای فعلی پر می‌شود؛ فقط محصولاتی که نامشان در ووکامرس وجود دارد به‌روزرسانی می‌شوند.', 'wc-product-descriptions-editor'); ?></p>
                     </div>
                 </div>
                 <div class="wcpde-excel__grid">
                     <div class="wcpde-excel__card">
                         <h3><?php esc_html_e('۱) دانلود قالب', 'wc-product-descriptions-editor'); ?></h3>
-                        <p><?php esc_html_e('ستون نام محصول از ووکامرس (با فیلترهای بالا) پر می‌شود؛ دو ستون دیگر خالی می‌ماند.', 'wc-product-descriptions-editor'); ?></p>
+                        <p><?php esc_html_e('ستون نام محصول از ووکامرس (با فیلترهای بالا) پر می‌شود؛ ستون توضیحات کوتاه خالی می‌ماند.', 'wc-product-descriptions-editor'); ?></p>
                         <a class="button button-primary wcpde-btn wcpde-btn--primary" href="<?php echo esc_url($export_url); ?>">
                             <?php esc_html_e('دانلود فایل اکسل', 'wc-product-descriptions-editor'); ?>
                         </a>
@@ -407,7 +424,6 @@ final class WCPDE_Admin
                 <ul class="wcpde-excel__cols">
                     <li><strong><?php echo esc_html(WCPDE_Spreadsheet::HEADERS[WCPDE_Spreadsheet::COL_NAME]); ?></strong></li>
                     <li><strong><?php echo esc_html(WCPDE_Spreadsheet::HEADERS[WCPDE_Spreadsheet::COL_EXCERPT]); ?></strong></li>
-                    <li><strong><?php echo esc_html(WCPDE_Spreadsheet::HEADERS[WCPDE_Spreadsheet::COL_CONTENT]); ?></strong></li>
                 </ul>
             </section>
 
@@ -439,7 +455,7 @@ final class WCPDE_Admin
                             <tr>
                                 <th class="wcpde-col-product"><?php esc_html_e('محصول', 'wc-product-descriptions-editor'); ?></th>
                                 <th class="wcpde-col-excerpt"><?php esc_html_e('توضیحات کوتاه', 'wc-product-descriptions-editor'); ?></th>
-                                <th class="wcpde-col-content"><?php esc_html_e('توضیحات اصلی', 'wc-product-descriptions-editor'); ?></th>
+                                <th class="wcpde-col-preview"><?php esc_html_e('پیش‌نمایش جدول', 'wc-product-descriptions-editor'); ?></th>
                                 <th class="wcpde-col-actions"><?php esc_html_e('عملیات', 'wc-product-descriptions-editor'); ?></th>
                             </tr>
                         </thead>
@@ -503,25 +519,31 @@ final class WCPDE_Admin
                     <button type="button" class="wcpde-ai-generate" <?php disabled(!WCPDE_AI_Settings::is_configured()); ?>>
                         <?php esc_html_e('✨ تولید جدول AI', 'wc-product-descriptions-editor'); ?>
                     </button>
-                    <button type="button" class="wcpde-ai-preview-toggle" hidden>
-                        <?php esc_html_e('پیش‌نمایش', 'wc-product-descriptions-editor'); ?>
-                    </button>
                 </div>
-                <textarea
-                    class="wcpde-textarea"
+                <input
+                    type="hidden"
+                    class="wcpde-excerpt-saved"
                     data-field="excerpt"
-                    rows="5"
-                    aria-label="<?php esc_attr_e('توضیحات کوتاه', 'wc-product-descriptions-editor'); ?>"
-                ><?php echo esc_textarea($post->post_excerpt); ?></textarea>
-                <div class="wcpde-ai-preview" hidden aria-live="polite"></div>
-            </td>
-            <td class="wcpde-col-content">
+                    value="<?php echo esc_attr($post->post_excerpt); ?>"
+                />
                 <textarea
                     class="wcpde-textarea"
-                    data-field="content"
-                    rows="8"
-                    aria-label="<?php esc_attr_e('توضیحات اصلی', 'wc-product-descriptions-editor'); ?>"
-                ><?php echo esc_textarea($post->post_content); ?></textarea>
+                    data-field="excerpt-input"
+                    rows="5"
+                    placeholder="<?php esc_attr_e('متن خام محصول (مثلاً سایزبندی)…', 'wc-product-descriptions-editor'); ?>"
+                    aria-label="<?php esc_attr_e('توضیحات کوتاه', 'wc-product-descriptions-editor'); ?>"
+                ><?php echo $this->has_table_preview($post->post_excerpt) ? '' : esc_textarea($post->post_excerpt); ?></textarea>
+            </td>
+            <td class="wcpde-col-preview">
+                <div class="wcpde-table-preview<?php echo $this->has_table_preview($post->post_excerpt) ? '' : ' is-empty'; ?>" aria-live="polite">
+                    <?php
+                    if ($this->has_table_preview($post->post_excerpt)) {
+                        echo WCPDE_AI_Table::sanitize_html($post->post_excerpt);
+                    } else {
+                        echo '<p class="wcpde-table-preview__empty">' . esc_html__('پیش‌نمایشی وجود ندارد — متن را وارد کنید و «تولید جدول AI» را بزنید.', 'wc-product-descriptions-editor') . '</p>';
+                    }
+                    ?>
+                </div>
             </td>
             <td class="wcpde-col-actions">
                 <button type="button" class="wcpde-save">
@@ -531,6 +553,11 @@ final class WCPDE_Admin
             </td>
         </tr>
         <?php
+    }
+
+    private function has_table_preview(string $excerpt): bool
+    {
+        return stripos($excerpt, '<table') !== false;
     }
 
     /**

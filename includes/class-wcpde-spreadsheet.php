@@ -13,17 +13,15 @@ final class WCPDE_Spreadsheet
 {
     public const COL_NAME    = 'product_name';
     public const COL_EXCERPT = 'short_description';
-    public const COL_CONTENT = 'main_description';
 
     /** @var string[] */
     public const HEADERS = [
         self::COL_NAME    => 'نام محصول',
         self::COL_EXCERPT => 'توضیحات کوتاه',
-        self::COL_CONTENT => 'توضیحات اصلی',
     ];
 
     /**
-     * @param array<int, array{product_name: string, short_description: string, main_description: string}> $rows
+     * @param array<int, array{product_name: string, short_description: string}> $rows
      */
     public static function download_xlsx(array $rows, string $filename): void
     {
@@ -38,7 +36,6 @@ final class WCPDE_Spreadsheet
             $sheet_rows[] = [
                 (string) ($row[self::COL_NAME] ?? ''),
                 (string) ($row[self::COL_EXCERPT] ?? ''),
-                (string) ($row[self::COL_CONTENT] ?? ''),
             ];
         }
 
@@ -74,7 +71,7 @@ final class WCPDE_Spreadsheet
     }
 
     /**
-     * @param array<int, array{product_name: string, short_description: string, main_description: string}> $rows
+     * @param array<int, array{product_name: string, short_description: string}> $rows
      */
     public static function download_csv(array $rows, string $filename): void
     {
@@ -97,7 +94,6 @@ final class WCPDE_Spreadsheet
                 [
                     (string) ($row[self::COL_NAME] ?? ''),
                     (string) ($row[self::COL_EXCERPT] ?? ''),
-                    (string) ($row[self::COL_CONTENT] ?? ''),
                 ]
             );
         }
@@ -107,7 +103,7 @@ final class WCPDE_Spreadsheet
     }
 
     /**
-     * @return array<int, array{product_name: string, short_description: string, main_description: string}>
+     * @return array<int, array{product_name: string, short_description: string}>
      */
     public static function parse_upload(string $file_path, string $original_name): array
     {
@@ -125,7 +121,7 @@ final class WCPDE_Spreadsheet
     }
 
     /**
-     * @return array<int, array{product_name: string, short_description: string, main_description: string}>
+     * @return array<int, array{product_name: string, short_description: string}>
      */
     private static function parse_csv(string $file_path): array
     {
@@ -172,7 +168,7 @@ final class WCPDE_Spreadsheet
     }
 
     /**
-     * @return array<int, array{product_name: string, short_description: string, main_description: string}>
+     * @return array<int, array{product_name: string, short_description: string}>
      */
     private static function parse_xlsx(string $file_path): array
     {
@@ -229,7 +225,7 @@ final class WCPDE_Spreadsheet
 
     /**
      * @param string[] $header_cells
-     * @return array{0: int, 1: int, 2: int}|null
+     * @return array{0: int, 1: int}|null
      */
     private static function map_headers(array $header_cells): ?array
     {
@@ -238,7 +234,6 @@ final class WCPDE_Spreadsheet
 
         $name_idx = $lookup[self::normalize_header(self::HEADERS[self::COL_NAME])] ?? null;
         $excerpt_idx = $lookup[self::normalize_header(self::HEADERS[self::COL_EXCERPT])] ?? null;
-        $content_idx = $lookup[self::normalize_header(self::HEADERS[self::COL_CONTENT])] ?? null;
 
         if ($name_idx === null) {
             return null;
@@ -247,21 +242,19 @@ final class WCPDE_Spreadsheet
         return [
             (int) $name_idx,
             (int) ($excerpt_idx ?? 1),
-            (int) ($content_idx ?? 2),
         ];
     }
 
     /**
      * @param string[] $cells
-     * @param array{0: int, 1: int, 2: int} $map
-     * @return array{product_name: string, short_description: string, main_description: string}
+     * @param array{0: int, 1: int} $map
+     * @return array{product_name: string, short_description: string}
      */
     private static function row_from_columns(array $cells, array $map): array
     {
         return [
             self::COL_NAME    => trim((string) ($cells[$map[0]] ?? '')),
             self::COL_EXCERPT => (string) ($cells[$map[1]] ?? ''),
-            self::COL_CONTENT => (string) ($cells[$map[2]] ?? ''),
         ];
     }
 

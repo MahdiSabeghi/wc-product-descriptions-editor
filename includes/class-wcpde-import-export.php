@@ -60,7 +60,6 @@ final class WCPDE_Import_Export
             $rows[] = [
                 WCPDE_Spreadsheet::COL_NAME    => $product->get_name(),
                 WCPDE_Spreadsheet::COL_EXCERPT => '',
-                WCPDE_Spreadsheet::COL_CONTENT => '',
             ];
         }
 
@@ -128,8 +127,7 @@ final class WCPDE_Import_Export
             $result = wp_update_post(
                 [
                     'ID'           => $product_id,
-                    'post_excerpt' => wp_kses_post((string) ($row[WCPDE_Spreadsheet::COL_EXCERPT] ?? '')),
-                    'post_content' => wp_kses_post((string) ($row[WCPDE_Spreadsheet::COL_CONTENT] ?? '')),
+                    'post_excerpt' => WCPDE_AI_Table::sanitize_html((string) ($row[WCPDE_Spreadsheet::COL_EXCERPT] ?? '')),
                 ],
                 true
             );
