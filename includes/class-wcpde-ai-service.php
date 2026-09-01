@@ -45,7 +45,7 @@ final class WCPDE_AI_Service
             [
                 [
                     'role'    => 'system',
-                    'content' => 'You convert Persian plain text into a spec table JSON. Output ONLY {"rows":[{"label":"...","value":"..."}]}. Never invent data.',
+                    'content' => 'You convert Persian plain text into a product spec table JSON. Use layout "matrix" when a grouping key repeats with different sub-fields (e.g. age + multiple measurements). Otherwise use layout "simple". Never invent data. Output JSON only.',
                 ],
                 [
                     'role'    => 'user',
@@ -64,15 +64,16 @@ final class WCPDE_AI_Service
 
         $payload = json_decode((string) ($result['content'] ?? ''), true);
         $rows    = WCPDE_AI_Table::rows_from_ai_payload($payload);
+        $matrix  = WCPDE_AI_Table::matrix_from_ai_payload($payload);
 
-        if ($rows === []) {
+        if ($rows === [] && $matrix === null) {
             return [
                 'success' => false,
                 'message' => __('AI جدول معتبری برنگرداند.', 'wc-product-descriptions-editor'),
             ];
         }
 
-        $html = WCPDE_AI_Table::build_html($rows);
+        $html = WCPDE_AI_Table::build_from_payload($payload);
 
         if ($html === '') {
             return [
@@ -92,13 +93,23 @@ final class WCPDE_AI_Service
     private function build_prompt(string $source_text): string
     {
         $lines = [
-            'متن زیر را فقط و فقط به جدول دو ستونه (عنوان | مقدار) تبدیل کن.',
-            'خروجی JSON با ساختار: {"rows":[{"label":"...","value":"..."}]}',
+            'متن زیر را به جدول مشخصات محصول تبدیل کن و فقط JSON برگردان.',
+            '',
+            'دو نوع layout:',
+            '',
+            '1) layout=simple — برای مشخصات تکی (جنس، رنگ، وزن و …):',
+            '{"layout":"simple","rows":[{"label":"عنوان","value":"مقدار"}]}',
+            '',
+            '2) layout=matrix — وقتی یک کلید گروه‌بندی (مثل سن، سایز، مدل) تکرار می‌شود و برای هر گروه چند زیرمقدار داری (مثل عرض پیرهن، عرض کت):',
+            '{"layout":"matrix","columns":["عرض پیرهن","عرض کت"],"rows":[{"label":"سن ۵ سال","values":["۱۰ سانت","۱۵ سانت"]},{"label":"سن ۶ سال","values":["۱۵ سانت","۲۰ سانت"]}]}',
+            '',
             'قوانین:',
-            '- فقط از اطلاعات داخل متن استفاده کن.',
-            '- نام محصول، قیمت، موجودی، SKU، دسته‌بندی یا هر داده‌ای که در متن نیست را اضافه نکن.',
-            '- اگر متن سایزبندی، لیست یا چند بخش دارد، هر مورد معنادار را یک ردیف جدا بساز.',
-            '- label ستون راست (عنوان) و value ستون چپ (مقدار) باشد.',
+            '- اگر می‌توانی داده را به صورت ماتریس (ردیف × ستون) نمایش دهی، حتماً layout=matrix بده.',
+            '- در matrix: label هر ردیف فقط همان کلید گروه (مثلاً «سن ۵ سال») باشد، نه ترکیب با نام ستون.',
+            '- columns فقط نام زیرفیلدها باشد (مثلاً عرض پیرهن، عرض کت).',
+            '- values در هر ردیف به همان ترتیب columns باشد.',
+            '- فقط از اطلاعات داخل متن استفاده کن؛ چیزی اختراع نکن.',
+            '- نام محصول، قیمت، موجودی، SKU یا داده‌ای که در متن نیست را اضافه نکن.',
             '- فقط JSON برگردان، بدون توضیح اضافه.',
             '',
             '--- متن توضیحات کوتاه ---',

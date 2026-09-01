@@ -1,27 +1,41 @@
 .wcpde-product-table {
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   border-collapse: collapse;
-  margin: 1rem 0;
-  font-size: 0.95rem;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
   direction: rtl;
 }
 
 .wcpde-product-table th,
 .wcpde-product-table td {
   border: 1px solid #e4e2ec;
-  padding: 0.55rem 0.75rem;
-  vertical-align: top;
+  padding: 0.3rem 0.5rem;
+  vertical-align: middle;
+  font-weight: 400;
+  text-align: right;
+  line-height: 1.45;
 }
 
 .wcpde-product-table th {
-  width: 34%;
+  width: auto;
   background: #f7f6fa;
   color: #090625;
-  font-weight: 700;
-  text-align: right;
 }
 
 .wcpde-product-table td {
   background: #fff;
   color: #090625;
+}
+
+.wcpde-product-table--matrix thead th {
+  background: #f0eef5;
+}
+
+.wcpde-product-table--matrix thead th:first-child {
+  background: transparent;
+}
+
+.wcpde-product-table--matrix tbody th {
+  white-space: nowrap;
 }

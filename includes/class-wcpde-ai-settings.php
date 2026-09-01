@@ -108,7 +108,7 @@ final class WCPDE_AI_Settings
     {
         return [
             'api_key'  => '',
-            'base_url' => 'https://api.metisai.ir/v1',
+            'base_url' => 'https://api.metisai.ir/openai/v1',
             'model'    => 'gpt-4o-mini',
         ];
     }

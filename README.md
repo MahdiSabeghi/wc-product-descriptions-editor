@@ -48,7 +48,7 @@
 
 | فیلد | پیش‌فرض |
 |------|---------|
-| آدرس API | `https://api.metisai.ir/v1` |
+| آدرس API | `https://api.metisai.ir/openai/v1` |
 | مدل | `gpt-4o-mini` |
 
 ## ساختار پوشه
@@ -66,4 +66,4 @@ GPL-2.0-or-later
 
 ## نسخه
 
-1.3.2
+1.3.6

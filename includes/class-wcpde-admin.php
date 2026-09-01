@@ -102,6 +102,15 @@ final class WCPDE_Admin
                     'aiNeedExcerpt' => __('ابتدا متن توضیحات کوتاه را وارد کنید.', 'wc-product-descriptions-editor'),
                     'aiNeedPlain'   => __('برای تولید مجدد، متن خام (غیر HTML) در توضیحات کوتاه وارد کنید.', 'wc-product-descriptions-editor'),
                     'noPreview' => __('پیش‌نمایشی وجود ندارد — متن را وارد کنید و «تولید جدول AI» را بزنید.', 'wc-product-descriptions-editor'),
+                    'viewProduct' => __('مشاهده محصول', 'wc-product-descriptions-editor'),
+                    'queueStart'  => __('ساخت گروهی', 'wc-product-descriptions-editor'),
+                    'queueRunning'=> __('در حال پردازش صف…', 'wc-product-descriptions-editor'),
+                    'queueProgress'=> __('پردازش %1$s از %2$s', 'wc-product-descriptions-editor'),
+                    'queueDone'   => __('صف تمام شد: %1$s موفق، %2$s رد شد، %3$s خطا', 'wc-product-descriptions-editor'),
+                    'queueEmpty'  => __('در محصولات انتخاب‌شده، متن خام در توضیحات کوتاه یافت نشد.', 'wc-product-descriptions-editor'),
+                    'queueNoSelection' => __('حداقل یک محصول را انتخاب کنید.', 'wc-product-descriptions-editor'),
+                    'queueCancel' => __('توقف صف', 'wc-product-descriptions-editor'),
+                    'selectAll'   => __('انتخاب همه', 'wc-product-descriptions-editor'),
                 ],
             ]
         );
@@ -433,26 +442,47 @@ final class WCPDE_Admin
                 </div>
             <?php else : ?>
                 <div class="wcpde-toolbar">
-                    <span>
-                        <?php
-                        echo esc_html(
-                            sprintf(
-                                /* translators: 1: from, 2: to, 3: total */
-                                __('نمایش %1$s–%2$s از %3$s', 'wc-product-descriptions-editor'),
-                                number_format_i18n(min($total, (($paged - 1) * (int) $filters['per_page']) + 1)),
-                                number_format_i18n(min($total, $paged * (int) $filters['per_page'])),
-                                number_format_i18n($total)
-                            )
-                        );
-                        ?>
-                    </span>
-                    <span class="wcpde-hint"><?php esc_html_e('Ctrl+Enter برای ذخیره سریع', 'wc-product-descriptions-editor'); ?></span>
+                    <div class="wcpde-toolbar__actions">
+                        <button
+                            type="button"
+                            class="button wcpde-btn wcpde-queue-start"
+                            <?php disabled(!WCPDE_AI_Settings::is_configured()); ?>
+                        >
+                            <?php esc_html_e('ساخت گروهی', 'wc-product-descriptions-editor'); ?>
+                        </button>
+                        <button type="button" class="button wcpde-btn wcpde-btn--ghost wcpde-queue-cancel" hidden>
+                            <?php esc_html_e('توقف صف', 'wc-product-descriptions-editor'); ?>
+                        </button>
+                        <span class="wcpde-queue-status" aria-live="polite" hidden></span>
+                    </div>
+                    <div class="wcpde-toolbar__meta">
+                        <span class="wcpde-toolbar__count">
+                            <?php
+                            echo esc_html(
+                                sprintf(
+                                    /* translators: 1: from, 2: to, 3: total */
+                                    __('نمایش %1$s–%2$s از %3$s', 'wc-product-descriptions-editor'),
+                                    number_format_i18n(min($total, (($paged - 1) * (int) $filters['per_page']) + 1)),
+                                    number_format_i18n(min($total, $paged * (int) $filters['per_page'])),
+                                    number_format_i18n($total)
+                                )
+                            );
+                            ?>
+                        </span>
+                        <span class="wcpde-hint"><?php esc_html_e('Ctrl+Enter برای ذخیره سریع', 'wc-product-descriptions-editor'); ?></span>
+                    </div>
                 </div>
 
                 <div class="wcpde-table-wrap">
                     <table class="wcpde-table">
                         <thead>
                             <tr>
+                                <th class="wcpde-col-select">
+                                    <label class="wcpde-select-all-label">
+                                        <input type="checkbox" class="wcpde-select-all" />
+                                        <span class="screen-reader-text"><?php esc_html_e('انتخاب همه', 'wc-product-descriptions-editor'); ?></span>
+                                    </label>
+                                </th>
                                 <th class="wcpde-col-product"><?php esc_html_e('محصول', 'wc-product-descriptions-editor'); ?></th>
                                 <th class="wcpde-col-excerpt"><?php esc_html_e('توضیحات کوتاه', 'wc-product-descriptions-editor'); ?></th>
                                 <th class="wcpde-col-preview"><?php esc_html_e('پیش‌نمایش جدول', 'wc-product-descriptions-editor'); ?></th>
@@ -482,24 +512,24 @@ final class WCPDE_Admin
             return;
         }
 
-        $thumb     = $product->get_image('thumbnail', ['class' => 'wcpde-thumb']);
-        $edit_link = get_edit_post_link($product_id, 'raw');
-        $sku       = $product->get_sku();
-        $type      = $product->get_type();
-        $status    = $product->get_status();
-        $stock     = $product->get_stock_status();
+        $thumb         = $product->get_image('thumbnail', ['class' => 'wcpde-thumb']);
+        $edit_link     = get_edit_post_link($product_id, 'raw');
+        $product_link  = get_permalink($product_id);
+        $sku          = $product->get_sku();
         ?>
         <tr class="wcpde-row" data-product-id="<?php echo esc_attr((string) $product_id); ?>">
+            <td class="wcpde-col-select">
+                <input
+                    type="checkbox"
+                    class="wcpde-row-select"
+                    aria-label="<?php echo esc_attr(sprintf(__('انتخاب %s', 'wc-product-descriptions-editor'), $product->get_name())); ?>"
+                />
+            </td>
             <td class="wcpde-col-product">
                 <div class="wcpde-product-cell">
                     <?php echo $thumb !== '' ? wp_kses_post($thumb) : '<span class="wcpde-no-thumb">—</span>'; ?>
                     <div>
                         <strong><?php echo esc_html($product->get_name()); ?></strong>
-                        <div class="wcpde-badges">
-                            <span class="wcpde-badge wcpde-badge--type"><?php echo esc_html($type); ?></span>
-                            <span class="wcpde-badge wcpde-badge--status"><?php echo esc_html($status); ?></span>
-                            <span class="wcpde-badge wcpde-badge--stock"><?php echo esc_html($stock); ?></span>
-                        </div>
                         <div class="wcpde-meta">
                             <span>#<?php echo esc_html((string) $product_id); ?></span>
                             <?php if ($sku !== '') : ?>
@@ -508,6 +538,11 @@ final class WCPDE_Admin
                             <?php if (is_string($edit_link) && $edit_link !== '') : ?>
                                 <a href="<?php echo esc_url($edit_link); ?>" target="_blank" rel="noopener noreferrer">
                                     <?php esc_html_e('ویرایش', 'wc-product-descriptions-editor'); ?>
+                                </a>
+                            <?php endif; ?>
+                            <?php if (is_string($product_link) && $product_link !== '') : ?>
+                                <a href="<?php echo esc_url($product_link); ?>" target="_blank" rel="noopener noreferrer">
+                                    <?php esc_html_e('مشاهده', 'wc-product-descriptions-editor'); ?>
                                 </a>
                             <?php endif; ?>
                         </div>

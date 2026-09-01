@@ -108,11 +108,11 @@ final class WCPDE_Product_Query
         }
 
         if ((int) ($filters['category'] ?? 0) > 0) {
-            $args['category'] = [(int) $filters['category']];
+            $args['product_category_id'] = [(int) $filters['category']];
         }
 
         if ((int) ($filters['tag'] ?? 0) > 0) {
-            $args['tag'] = [(int) $filters['tag']];
+            $args['product_tag_id'] = [(int) $filters['tag']];
         }
 
         if ((string) ($filters['stock_status'] ?? '') !== '') {
